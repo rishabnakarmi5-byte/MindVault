@@ -50,59 +50,64 @@ export const processAudioJournal = async (
     Tasks: Transcribe, Summarize, Profile (using frameworks above).
   `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: {
-      parts: [
-        {
-          inlineData: {
-            mimeType: audioBlob.type.split(';')[0], 
-            data: base64Audio
-          }
-        },
-        { text: prompt }
-      ]
-    },
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          transcript: { type: Type.STRING },
-          summary: { type: Type.STRING },
-          sentiment: { 
-            type: Type.STRING, 
-            enum: ['Positive', 'Neutral', 'Negative', 'Anxious', 'Excited', 'Stressed'] 
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType: audioBlob.type.split(';')[0], 
+              data: base64Audio
+            }
           },
-          tags: { type: Type.ARRAY, items: { type: Type.STRING } },
-          keyEvents: { type: Type.ARRAY, items: { type: Type.STRING } },
-          extractedFacts: { type: Type.ARRAY, items: { type: Type.STRING } },
-          psychometrics: {
-            type: Type.OBJECT,
-            properties: {
-              valence: { type: Type.NUMBER, description: "Russell (1980): -1.0 to 1.0" },
-              arousal: { type: Type.NUMBER, description: "Russell (1980): 0.0 to 1.0" },
-              cbtDistortions: { 
-                type: Type.ARRAY, 
-                items: { type: Type.STRING }, 
-                description: "Beck (1976): List of cognitive distortions found." 
-              },
-              maslowLevel: { 
-                type: Type.STRING, 
-                enum: ['Physiological', 'Safety', 'Belonging', 'Esteem', 'Self-Actualization'],
-                description: "Maslow (1943): Primary need level."
-              }
+          { text: prompt }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            transcript: { type: Type.STRING },
+            summary: { type: Type.STRING },
+            sentiment: { 
+              type: Type.STRING, 
+              enum: ['Positive', 'Neutral', 'Negative', 'Anxious', 'Excited', 'Stressed'] 
             },
-            required: ["valence", "arousal", "cbtDistortions", "maslowLevel"]
-          }
-        },
-        required: ["transcript", "summary", "sentiment", "tags", "keyEvents", "extractedFacts", "psychometrics"]
+            tags: { type: Type.ARRAY, items: { type: Type.STRING } },
+            keyEvents: { type: Type.ARRAY, items: { type: Type.STRING } },
+            extractedFacts: { type: Type.ARRAY, items: { type: Type.STRING } },
+            psychometrics: {
+              type: Type.OBJECT,
+              properties: {
+                valence: { type: Type.NUMBER, description: "Russell (1980): -1.0 to 1.0" },
+                arousal: { type: Type.NUMBER, description: "Russell (1980): 0.0 to 1.0" },
+                cbtDistortions: { 
+                  type: Type.ARRAY, 
+                  items: { type: Type.STRING }, 
+                  description: "Beck (1976): List of cognitive distortions found." 
+                },
+                maslowLevel: { 
+                  type: Type.STRING, 
+                  enum: ['Physiological', 'Safety', 'Belonging', 'Esteem', 'Self-Actualization'],
+                  description: "Maslow (1943): Primary need level."
+                }
+              },
+              required: ["valence", "arousal", "cbtDistortions", "maslowLevel"]
+            }
+          },
+          required: ["transcript", "summary", "sentiment", "tags", "keyEvents", "extractedFacts", "psychometrics"]
+        }
       }
-    }
-  });
+    });
 
-  if (!response.text) throw new Error("No response from Gemini");
-  return JSON.parse(response.text) as ProcessedMetadata;
+    if (!response.text) throw new Error("No response from Gemini");
+    return JSON.parse(response.text) as ProcessedMetadata;
+  } catch (e: any) {
+    console.error("Gemini Processing Error:", e);
+    throw new Error(e.message || "Failed to process audio");
+  }
 };
 
 export const analyzeHistory = async (
@@ -157,13 +162,16 @@ export const analyzeHistory = async (
     Provide a professional, empathetic, yet analytically rigorous response.
   `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: prompt,
-    config: {
-        thinkingConfig: { thinkingBudget: 4096 }
-    }
-  });
-
-  return response.text || "I couldn't analyze the data at this moment.";
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: prompt,
+      // Removed thinkingConfig to avoid quota/model availability errors during beta
+    });
+    return response.text || "I couldn't analyze the data at this moment.";
+  } catch (error: any) {
+    console.error("Analysis Error:", error);
+    // Return the actual error message so the user knows what's wrong
+    return `System Error: ${error.message || "Failed to connect to AI"}. Please check your internet connection or API Key.`;
+  }
 };

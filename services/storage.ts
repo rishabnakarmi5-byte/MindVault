@@ -65,3 +65,27 @@ export const getContextualLocation = (hour: number): string => {
   if (hour > 22 || hour < 7) return "Home";
   return "Outdoors / Transit";
 };
+
+// --- Data Management ---
+
+export const exportData = (): string => {
+  const entries = getEntries();
+  const profile = getUserProfile();
+  return JSON.stringify({ entries, profile, exportedAt: Date.now() }, null, 2);
+};
+
+export const importData = (jsonString: string): boolean => {
+  try {
+    const data = JSON.parse(jsonString);
+    if (data.entries && Array.isArray(data.entries)) {
+      localStorage.setItem(ENTRY_KEY, JSON.stringify(data.entries));
+    }
+    if (data.profile) {
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(data.profile));
+    }
+    return true;
+  } catch (e) {
+    console.error("Import failed", e);
+    return false;
+  }
+};

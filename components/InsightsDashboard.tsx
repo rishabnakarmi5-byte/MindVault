@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrainCircuit, Calendar, MapPin, ArrowUp, User, Sparkles, Activity, AlertTriangle, Layers } from 'lucide-react';
-import { getEntries, getUserProfile } from '../services/storage';
+import { BrainCircuit, Calendar, MapPin, ArrowUp, User, Sparkles, Activity, AlertTriangle, Layers, Settings, Download, Upload, Trash2, X } from 'lucide-react';
+import { getEntries, getUserProfile, exportData, importData, clearHistory } from '../services/storage';
 import { analyzeHistory } from '../services/gemini';
 import { JournalEntry, UserProfile } from '../types';
 
@@ -10,12 +10,17 @@ const InsightsDashboard: React.FC = () => {
   const [query, setQuery] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = () => {
     setEntries(getEntries());
     setProfile(getUserProfile());
-  }, []);
+  };
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,9 +36,53 @@ const InsightsDashboard: React.FC = () => {
       }, 100);
     } catch (error) {
       console.error(error);
-      setAnalysisResult("Sorry, I encountered an issue analyzing your history.");
+      setAnalysisResult("System Error: Could not complete analysis.");
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleExport = () => {
+    const dataStr = exportData();
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mindvault_backup_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = (e: any) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        if (importData(content)) {
+          alert("Import successful!");
+          loadData();
+          setShowSettings(false);
+        } else {
+          alert("Failed to import. Invalid file format.");
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const handleClear = () => {
+    if (confirm("Are you sure? This will delete ALL local history permanently.")) {
+      clearHistory();
+      loadData();
+      setShowSettings(false);
     }
   };
 
@@ -72,14 +121,56 @@ const InsightsDashboard: React.FC = () => {
     );
   };
 
+  if (showSettings) {
+    return (
+      <div className="pb-24 w-full max-w-2xl mx-auto animate-fade-in">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold text-white">Settings</h2>
+          <button onClick={() => setShowSettings(false)} className="p-2 bg-slate-800 rounded-full text-slate-400">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="space-y-4">
+          <div className="glass-panel p-5 rounded-2xl border border-slate-700/50">
+            <h3 className="text-sm font-bold text-slate-300 mb-2 uppercase tracking-wide">Data Management</h3>
+            <p className="text-xs text-slate-500 mb-4">
+              Your data is currently stored locally on this device. Backup regularly to avoid data loss.
+            </p>
+            <div className="space-y-3">
+              <button onClick={handleExport} className="w-full flex items-center justify-center gap-2 p-3 bg-indigo-600 rounded-xl text-white font-medium hover:bg-indigo-500 transition-colors">
+                <Download className="w-4 h-4" /> Export Data (Backup)
+              </button>
+              <button onClick={handleImport} className="w-full flex items-center justify-center gap-2 p-3 bg-slate-700 rounded-xl text-slate-200 font-medium hover:bg-slate-600 transition-colors">
+                <Upload className="w-4 h-4" /> Import Data
+              </button>
+            </div>
+          </div>
+
+          <div className="glass-panel p-5 rounded-2xl border border-red-900/30">
+            <h3 className="text-sm font-bold text-red-400 mb-2 uppercase tracking-wide">Danger Zone</h3>
+            <button onClick={handleClear} className="w-full flex items-center justify-center gap-2 p-3 bg-red-950/50 border border-red-900 rounded-xl text-red-400 font-medium hover:bg-red-900/50 transition-colors">
+              <Trash2 className="w-4 h-4" /> Wipe All Data
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pb-24 w-full max-w-2xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-white mb-1">Neural Memory</h2>
-        <p className="text-slate-400 text-sm">
-          {entries.length} memories accumulated across various locations.
-        </p>
+      <div className="flex justify-between items-start mb-6">
+        <div>
+          <h2 className="text-xl font-semibold text-white mb-1">Neural Memory</h2>
+          <p className="text-slate-400 text-sm">
+            {entries.length} memories accumulated.
+          </p>
+        </div>
+        <button onClick={() => setShowSettings(true)} className="p-2 bg-slate-800/50 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
+          <Settings className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Core Memory / Profile Section */}
@@ -130,7 +221,7 @@ const InsightsDashboard: React.FC = () => {
               <BrainCircuit className="w-4 h-4" />
               <span className="text-xs font-bold uppercase tracking-wider">Clinical Assessment</span>
             </div>
-            <div className="prose prose-invert prose-sm leading-relaxed text-slate-200">
+            <div className="prose prose-invert prose-sm leading-relaxed text-slate-200 whitespace-pre-wrap">
               {analysisResult}
             </div>
           </div>
