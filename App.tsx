@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, BarChart3, Settings, LogIn } from 'lucide-react';
+import { Mic, BarChart3, Settings, LogIn, Download } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, signInWithGoogle, logoutUser } from './services/firebase';
 import RecorderWidget from './components/RecorderWidget';
@@ -14,6 +14,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>(View.RECORDER);
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -30,8 +31,28 @@ const App: React.FC = () => {
       setCurrentView(View.RECORDER);
     }
 
-    return () => unsubscribe();
+    // PWA Install Prompt Listener
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
 
   if (authLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-500">Loading...</div>;
@@ -48,13 +69,27 @@ const App: React.FC = () => {
         <p className="text-slate-400 mb-8 max-w-xs">
           Secure, cloud-synced neural memory for your thoughts.
         </p>
-        <button 
-          onClick={signInWithGoogle}
-          className="flex items-center gap-3 bg-white text-slate-900 px-6 py-3 rounded-xl font-bold hover:bg-slate-200 transition-all shadow-lg shadow-indigo-500/20"
-        >
-          <LogIn className="w-5 h-5" />
-          Sign in with Google
-        </button>
+        
+        <div className="space-y-4 w-full max-w-xs">
+          <button 
+            onClick={signInWithGoogle}
+            className="w-full flex items-center justify-center gap-3 bg-white text-slate-900 px-6 py-3 rounded-xl font-bold hover:bg-slate-200 transition-all shadow-lg shadow-indigo-500/20"
+          >
+            <LogIn className="w-5 h-5" />
+            Sign in with Google
+          </button>
+          
+          {/* Install Button on Auth Screen */}
+          {deferredPrompt && (
+            <button 
+              onClick={handleInstallClick}
+              className="w-full flex items-center justify-center gap-3 bg-slate-800 text-slate-300 px-6 py-3 rounded-xl font-medium hover:bg-slate-700 transition-all border border-slate-700"
+            >
+              <Download className="w-5 h-5" />
+              Install Android App
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -67,8 +102,16 @@ const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 w-full max-w-md mx-auto relative z-10 px-4 pt-6">
-        {/* User Badge */}
-        <div className="absolute top-4 right-4 z-50">
+        {/* User Badge & Install Button */}
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-3">
+           {deferredPrompt && (
+             <button 
+               onClick={handleInstallClick}
+               className="text-[10px] bg-indigo-600 text-white px-3 py-1.5 rounded-full font-medium shadow-lg animate-pulse"
+             >
+               Install App
+             </button>
+           )}
            <img 
              src={user.photoURL} 
              alt="Profile" 

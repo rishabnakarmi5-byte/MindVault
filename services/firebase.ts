@@ -11,6 +11,11 @@ const firebaseConfig = {
   appId: process.env.FIREBASE_APP_ID
 };
 
+// Simple validation to avoid white screen of death if env vars are missing
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  console.error("Firebase Configuration Missing! Check your .env file or Vite config.");
+}
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
