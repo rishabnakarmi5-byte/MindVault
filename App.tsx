@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, BarChart3, Settings, LogIn, Download } from 'lucide-react';
+import { Mic, BarChart3, Settings, LogIn, Download, AlertTriangle } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, signInWithGoogle, logoutUser } from './services/firebase';
 import RecorderWidget from './components/RecorderWidget';
@@ -14,15 +14,27 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>(View.RECORDER);
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
+    // Check if auth is initialized (config might be missing)
+    if (!auth) {
+      setLoginError("Firebase configuration missing. Please check .env file.");
+      setAuthLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser: User | null) => {
       setUser(currentUser);
       setAuthLoading(false);
+    }, (error) => {
+      console.error("Auth State Error:", error);
+      setLoginError(error.message);
+      setAuthLoading(false);
     });
 
-    // Handle PWA shortcuts or deep links
+    // Handle PWA shortcuts
     const params = new URLSearchParams(window.location.search);
     const viewParam = params.get('view');
     if (viewParam === 'INSIGHTS') {
@@ -54,8 +66,33 @@ const App: React.FC = () => {
     }
   };
 
+  const handleLogin = async () => {
+    setLoginError(null);
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      console.error("Login Failed:", error);
+      let msg = "Login failed. Check console for details.";
+      if (error.code === 'auth/unauthorized-domain') {
+        msg = "Domain not authorized. Add this domain to Firebase Console > Authentication > Settings.";
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        msg = "Sign-in cancelled.";
+      } else if (error.message) {
+        msg = error.message;
+      }
+      setLoginError(msg);
+    }
+  };
+
   if (authLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-500">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-500">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-t-2 border-indigo-500 rounded-full animate-spin"></div>
+          <p>Initializing MindVault...</p>
+        </div>
+      </div>
+    );
   }
 
   // Auth Screen
@@ -70,9 +107,16 @@ const App: React.FC = () => {
           Secure, cloud-synced neural memory for your thoughts.
         </p>
         
+        {loginError && (
+          <div className="mb-6 p-4 bg-red-950/50 border border-red-900 rounded-xl text-red-200 text-sm max-w-xs flex items-start gap-2 text-left">
+            <AlertTriangle className="w-5 h-5 shrink-0 text-red-400" />
+            <span>{loginError}</span>
+          </div>
+        )}
+
         <div className="space-y-4 w-full max-w-xs">
           <button 
-            onClick={signInWithGoogle}
+            onClick={handleLogin}
             className="w-full flex items-center justify-center gap-3 bg-white text-slate-900 px-6 py-3 rounded-xl font-bold hover:bg-slate-200 transition-all shadow-lg shadow-indigo-500/20"
           >
             <LogIn className="w-5 h-5" />
