@@ -8,9 +8,25 @@
       "type": "image/png"
     }
   ],
-  "start_url": ".",
+  "start_url": "./?source=pwa",
   "display": "standalone",
   "theme_color": "#0f172a",
   "background_color": "#0f172a",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "shortcuts": [
+    {
+      "name": "Quick Record",
+      "short_name": "Record",
+      "description": "Record a new journal entry",
+      "url": "./?view=RECORDER",
+      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/2814/2814368.png", "sizes": "512x512" }]
+    },
+    {
+      "name": "Insights",
+      "short_name": "Memory",
+      "description": "View your neural memory",
+      "url": "./?view=INSIGHTS",
+      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/2814/2814368.png", "sizes": "512x512" }]
+    }
+  ]
 }

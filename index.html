@@ -4,8 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>MindVault AI</title>
     <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2814/2814368.png" />
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2814/2814368.png">
     <!-- Tailwind CSS via CDN for simplicity in this setup -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -43,7 +48,7 @@
 }
 </script>
 </head>
-  <body class="bg-slate-950 text-slate-100 antialiased selection:bg-indigo-500 selection:text-white">
+  <body class="bg-slate-950 text-slate-100 antialiased selection:bg-indigo-500 selection:text-white overscroll-none">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

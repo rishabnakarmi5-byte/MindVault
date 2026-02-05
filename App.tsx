@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mic, BarChart3, Settings } from 'lucide-react';
 import RecorderWidget from './components/RecorderWidget';
 import InsightsDashboard from './components/InsightsDashboard';
@@ -10,6 +10,17 @@ enum View {
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>(View.RECORDER);
+
+  useEffect(() => {
+    // Handle PWA shortcuts or deep links
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view');
+    if (viewParam === 'INSIGHTS') {
+      setCurrentView(View.INSIGHTS);
+    } else if (viewParam === 'RECORDER') {
+      setCurrentView(View.RECORDER);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden bg-slate-950">

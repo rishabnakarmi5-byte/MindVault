@@ -109,8 +109,11 @@ export const analyzeHistory = async (
   history: JournalEntry[],
   userQuery: string
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  if (history.length === 0) {
+    return "I need some journal entries before I can analyze your history. Try recording a few thoughts first!";
+  }
 
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const userProfile = getUserProfile();
 
   // Map history with the new metrics for the Pro model to analyze
