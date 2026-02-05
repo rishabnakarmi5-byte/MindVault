@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Mic, BarChart3, Settings, LogIn, Download } from 'lucide-react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, signInWithGoogle, logoutUser } from './services/firebase';
 import RecorderWidget from './components/RecorderWidget';
 import InsightsDashboard from './components/InsightsDashboard';
@@ -12,12 +12,12 @@ enum View {
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>(View.RECORDER);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser: User | null) => {
       setUser(currentUser);
       setAuthLoading(false);
     });
@@ -113,7 +113,7 @@ const App: React.FC = () => {
              </button>
            )}
            <img 
-             src={user.photoURL} 
+             src={user.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'} 
              alt="Profile" 
              className="w-8 h-8 rounded-full border border-slate-700 shadow-md cursor-pointer hover:border-indigo-400 transition-colors"
              onClick={() => {

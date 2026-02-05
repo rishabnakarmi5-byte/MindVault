@@ -1,5 +1,5 @@
 import { db, auth } from './firebase';
-import { collection, doc, setDoc, getDocs, getDoc, query, orderBy, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, getDoc, query, orderBy, deleteDoc, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { JournalEntry, UserProfile } from '../types';
 
 const getUserId = () => {
@@ -25,7 +25,8 @@ export const getEntries = async (): Promise<JournalEntry[]> => {
   
   try {
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data() as JournalEntry);
+    // Explicitly typing 'doc' to appease strict TS checks in build pipeline
+    return querySnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData, DocumentData>) => doc.data() as JournalEntry);
   } catch (e) {
     console.error("Failed to fetch entries", e);
     return [];
