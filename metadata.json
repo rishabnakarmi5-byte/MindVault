@@ -1,0 +1,8 @@
+{
+  "name": "MindVault AI",
+  "description": "An intelligent context-aware audio journal that accumulates your history to provide deep personal insights.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation"
+  ]
+}
