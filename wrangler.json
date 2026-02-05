@@ -1,6 +1,7 @@
 {
   "name": "mindvault",
   "compatibility_date": "2024-09-25",
+  "main": "worker.ts",
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
