@@ -1,6 +1,1 @@
-declare var process: {
-  env: {
-    API_KEY: string;
-    [key: string]: string | undefined;
-  }
-}
+// Type definitions removed to fix missing vite/client error
