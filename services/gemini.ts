@@ -16,23 +16,20 @@ export const blobToBase64 = (blob: Blob): Promise<string> => {
   });
 };
 
-const getApiKey = (): string => {
-  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-    return process.env.API_KEY;
-  }
-  throw new Error("API_KEY is missing. Please ensure process.env.API_KEY is configured in your environment.");
-};
-
 export const processAudioJournal = async (
   audioBlob: Blob,
   context: { location: string; timestamp: string }
 ): Promise<ProcessedMetadata> => {
-  const apiKey = getApiKey();
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const base64Audio = await blobToBase64(audioBlob);
 
   const prompt = `
     You are an Expert Clinical Psychologist AI. Analyze this audio journal recorded at ${context.location} on ${context.timestamp}.
+    
+    ### LANGUAGE SETTINGS (CRITICAL):
+    - The user speaks a mix of **English** and **Nepali** (Code-switching).
+    - **Transcription**: Transcribe exactly as spoken. Use Devanagari script for Nepali phrases and Roman script for English phrases. Do not translate the transcript.
+    - **Analysis Output**: The Summary, Facts, and Psychological Analysis must be generated in **English** for standardization.
     
     ### ANALYSIS FRAMEWORKS (STRICT ADHERENCE REQUIRED):
     
@@ -48,7 +45,7 @@ export const processAudioJournal = async (
        - Identify the *primary* need driving this entry: 'Physiological', 'Safety', 'Belonging', 'Esteem', or 'Self-Actualization'.
 
     4. **Core Memory Extraction**:
-       - Extract 1-3 permanent facts about the user.
+       - Extract 1-3 permanent facts about the user (in English).
        
     Tasks: Transcribe, Summarize, Profile (using frameworks above).
   `;
@@ -112,8 +109,7 @@ export const analyzeHistory = async (
   history: JournalEntry[],
   userQuery: string
 ): Promise<string> => {
-  const apiKey = getApiKey();
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const userProfile = getUserProfile();
 
@@ -134,6 +130,12 @@ export const analyzeHistory = async (
   const prompt = `
     You are a Lead Psychologist AI.
     
+    ### LANGUAGE CONTEXT:
+    The user is bilingual (English/Nepali). 
+    - The **History Data** provided is in English (standardized).
+    - The **User Query** might be in English or Nepali.
+    - **Response Language**: If the user asks in Nepali, reply in Nepali. If in English, reply in English.
+    
     ### USER PROFILE (Core Traits):
     ${JSON.stringify(userProfile.coreMemories, null, 2)}
     
@@ -145,7 +147,7 @@ export const analyzeHistory = async (
     
     ### ANALYSIS INSTRUCTIONS:
     1. **Psychometric Trajectory**: Analyze the trend of Valence/Arousal (Russell, 1980) over time. Is the user spiraling into high-arousal negativity (Anxiety) or low-arousal negativity (Depression)?
-    2. **Cognitive Audit**: Identify recurring Cognitive Distortions (Beck, 1976). Does the user frequently 'Catastrophize' at work?
+    2. **Cognitive Audit**: Identify recurring Cognitive Distortions (Beck, 1976).
     3. **Needs Analysis**: Using Maslow (1943), determine if the user is stuck at a lower level (Safety) preventing Self-Actualization.
     4. **Contextual Correlation**: Correlate these metrics with location data.
     
