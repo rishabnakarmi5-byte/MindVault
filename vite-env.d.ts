@@ -1,1 +1,7 @@
-// Type definitions removed to fix missing vite/client error
+/// <reference types="vite/client" />
+
+declare namespace NodeJS {
+  interface ProcessEnv {
+    API_KEY: string;
+  }
+}
