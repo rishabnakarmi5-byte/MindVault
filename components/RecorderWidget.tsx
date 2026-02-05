@@ -142,7 +142,7 @@ const RecorderWidget: React.FC<RecorderWidgetProps> = ({ onEntrySaved }) => {
         metadata
       };
 
-      saveEntry(newEntry);
+      await saveEntry(newEntry);
       onEntrySaved(); 
     } catch (error: any) {
       console.error("Processing failed:", error);

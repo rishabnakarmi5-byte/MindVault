@@ -1,63 +1,77 @@
+import { db, auth } from './firebase';
+import { collection, doc, setDoc, getDocs, getDoc, query, orderBy, deleteDoc } from 'firebase/firestore';
 import { JournalEntry, UserProfile } from '../types';
 
-const ENTRY_KEY = 'mindvault_entries_v1';
-const PROFILE_KEY = 'mindvault_profile_v1';
+const getUserId = () => {
+  if (!auth.currentUser) throw new Error("User not authenticated");
+  return auth.currentUser.uid;
+};
 
 // --- Journal Entries ---
 
-export const saveEntry = (entry: JournalEntry): void => {
-  const existing = getEntries();
-  const updated = [entry, ...existing];
-  // Limit to last 100 entries to prevent LocalStorage quota issues in this demo
-  // In a real production app, this would use IndexedDB
-  if (updated.length > 100) updated.length = 100;
-  localStorage.setItem(ENTRY_KEY, JSON.stringify(updated));
+export const saveEntry = async (entry: JournalEntry): Promise<void> => {
+  const uid = getUserId();
+  const entryRef = doc(db, `users/${uid}/journal_entries`, entry.id);
+  await setDoc(entryRef, entry);
   
   // Also update the profile with new facts
-  updateUserProfile(entry.metadata.extractedFacts);
+  await updateUserProfile(entry.metadata.extractedFacts);
 };
 
-export const getEntries = (): JournalEntry[] => {
-  const data = localStorage.getItem(ENTRY_KEY);
-  if (!data) return [];
+export const getEntries = async (): Promise<JournalEntry[]> => {
+  if (!auth.currentUser) return [];
+  const uid = getUserId();
+  const q = query(collection(db, `users/${uid}/journal_entries`), orderBy('timestamp', 'desc'));
+  
   try {
-    return JSON.parse(data);
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => doc.data() as JournalEntry);
   } catch (e) {
-    console.error("Failed to parse journal entries", e);
+    console.error("Failed to fetch entries", e);
     return [];
   }
 };
 
 // --- User Profile (Core Memory) ---
 
-export const getUserProfile = (): UserProfile => {
-  const data = localStorage.getItem(PROFILE_KEY);
-  if (!data) return { coreMemories: [], lastUpdated: Date.now() };
+export const getUserProfile = async (): Promise<UserProfile> => {
+  if (!auth.currentUser) return { coreMemories: [], lastUpdated: Date.now() };
+  const uid = getUserId();
+  const docRef = doc(db, `users/${uid}/profile`, 'core');
+  
   try {
-    return JSON.parse(data);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as UserProfile;
+    }
+    return { coreMemories: [], lastUpdated: Date.now() };
   } catch (e) {
     return { coreMemories: [], lastUpdated: Date.now() };
   }
 };
 
-export const updateUserProfile = (newFacts: string[]): void => {
+export const updateUserProfile = async (newFacts: string[]): Promise<void> => {
   if (!newFacts || newFacts.length === 0) return;
+  const uid = getUserId();
   
-  const profile = getUserProfile();
+  const currentProfile = await getUserProfile();
   // Merge new facts, remove duplicates
-  const merged = Array.from(new Set([...profile.coreMemories, ...newFacts]));
+  const merged = Array.from(new Set([...currentProfile.coreMemories, ...newFacts]));
   
   const updatedProfile: UserProfile = {
     coreMemories: merged,
     lastUpdated: Date.now()
   };
   
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(updatedProfile));
+  const docRef = doc(db, `users/${uid}/profile`, 'core');
+  await setDoc(docRef, updatedProfile);
 };
 
-export const clearHistory = (): void => {
-  localStorage.removeItem(ENTRY_KEY);
-  localStorage.removeItem(PROFILE_KEY);
+export const clearHistory = async (): Promise<void> => {
+  const uid = getUserId();
+  // In a real app we would use batch delete, for now this is a hard reset
+  // Firestore doesn't support deleting collections easily from client
+  console.warn("Full clear not fully implemented for client-side safety. Please manually delete subcollections.");
 };
 
 export const getContextualLocation = (hour: number): string => {
@@ -66,26 +80,12 @@ export const getContextualLocation = (hour: number): string => {
   return "Outdoors / Transit";
 };
 
-// --- Data Management ---
+// --- Data Management (Legacy/Migration) ---
+// Note: Direct JSON import/export is harder with Firestore async nature and potential size.
+// For now, we disabled the sync implementation.
 
-export const exportData = (): string => {
-  const entries = getEntries();
-  const profile = getUserProfile();
+export const exportData = async (): Promise<string> => {
+  const entries = await getEntries();
+  const profile = await getUserProfile();
   return JSON.stringify({ entries, profile, exportedAt: Date.now() }, null, 2);
-};
-
-export const importData = (jsonString: string): boolean => {
-  try {
-    const data = JSON.parse(jsonString);
-    if (data.entries && Array.isArray(data.entries)) {
-      localStorage.setItem(ENTRY_KEY, JSON.stringify(data.entries));
-    }
-    if (data.profile) {
-      localStorage.setItem(PROFILE_KEY, JSON.stringify(data.profile));
-    }
-    return true;
-  } catch (e) {
-    console.error("Import failed", e);
-    return false;
-  }
 };

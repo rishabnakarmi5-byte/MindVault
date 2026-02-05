@@ -119,7 +119,8 @@ export const analyzeHistory = async (
   }
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const userProfile = getUserProfile();
+  // FIX: Await the profile fetch since storage is now async (Firebase)
+  const userProfile = await getUserProfile();
 
   // Map history with the new metrics for the Pro model to analyze
   const contextData = history.map(h => ({
@@ -166,12 +167,10 @@ export const analyzeHistory = async (
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
-      // Removed thinkingConfig to avoid quota/model availability errors during beta
     });
     return response.text || "I couldn't analyze the data at this moment.";
   } catch (error: any) {
     console.error("Analysis Error:", error);
-    // Return the actual error message so the user knows what's wrong
     return `System Error: ${error.message || "Failed to connect to AI"}. Please check your internet connection or API Key.`;
   }
 };

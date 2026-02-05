@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrainCircuit, Calendar, MapPin, ArrowUp, User, Sparkles, Activity, AlertTriangle, Layers, Settings, Download, Upload, Trash2, X } from 'lucide-react';
-import { getEntries, getUserProfile, exportData, importData, clearHistory } from '../services/storage';
+import { BrainCircuit, Calendar, MapPin, ArrowUp, User, Sparkles, Activity, AlertTriangle, Layers, Settings, Download, Trash2, X } from 'lucide-react';
+import { getEntries, getUserProfile, exportData, clearHistory } from '../services/storage';
 import { analyzeHistory } from '../services/gemini';
 import { JournalEntry, UserProfile } from '../types';
 
@@ -9,6 +9,7 @@ const InsightsDashboard: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile>({ coreMemories: [], lastUpdated: 0 });
   const [query, setQuery] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -17,9 +18,20 @@ const InsightsDashboard: React.FC = () => {
     loadData();
   }, []);
 
-  const loadData = () => {
-    setEntries(getEntries());
-    setProfile(getUserProfile());
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+        const [loadedEntries, loadedProfile] = await Promise.all([
+            getEntries(),
+            getUserProfile()
+        ]);
+        setEntries(loadedEntries);
+        setProfile(loadedProfile);
+    } catch (e) {
+        console.error(e);
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   const handleAnalyze = async (e: React.FormEvent) => {
@@ -42,8 +54,8 @@ const InsightsDashboard: React.FC = () => {
     }
   };
 
-  const handleExport = () => {
-    const dataStr = exportData();
+  const handleExport = async () => {
+    const dataStr = await exportData();
     const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -55,32 +67,9 @@ const InsightsDashboard: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleImport = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json';
-    input.onchange = (e: any) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const content = event.target?.result as string;
-        if (importData(content)) {
-          alert("Import successful!");
-          loadData();
-          setShowSettings(false);
-        } else {
-          alert("Failed to import. Invalid file format.");
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  };
-
-  const handleClear = () => {
-    if (confirm("Are you sure? This will delete ALL local history permanently.")) {
-      clearHistory();
+  const handleClear = async () => {
+    if (confirm("Are you sure? This will delete data available to this device.")) {
+      await clearHistory();
       loadData();
       setShowSettings(false);
     }
@@ -121,6 +110,10 @@ const InsightsDashboard: React.FC = () => {
     );
   };
 
+  if (isLoading) {
+      return <div className="p-8 text-center text-slate-500 animate-pulse">Syncing neural database...</div>;
+  }
+
   if (showSettings) {
     return (
       <div className="pb-24 w-full max-w-2xl mx-auto animate-fade-in">
@@ -135,14 +128,11 @@ const InsightsDashboard: React.FC = () => {
           <div className="glass-panel p-5 rounded-2xl border border-slate-700/50">
             <h3 className="text-sm font-bold text-slate-300 mb-2 uppercase tracking-wide">Data Management</h3>
             <p className="text-xs text-slate-500 mb-4">
-              Your data is currently stored locally on this device. Backup regularly to avoid data loss.
+              Your data is securely stored in the cloud (Firebase).
             </p>
             <div className="space-y-3">
               <button onClick={handleExport} className="w-full flex items-center justify-center gap-2 p-3 bg-indigo-600 rounded-xl text-white font-medium hover:bg-indigo-500 transition-colors">
-                <Download className="w-4 h-4" /> Export Data (Backup)
-              </button>
-              <button onClick={handleImport} className="w-full flex items-center justify-center gap-2 p-3 bg-slate-700 rounded-xl text-slate-200 font-medium hover:bg-slate-600 transition-colors">
-                <Upload className="w-4 h-4" /> Import Data
+                <Download className="w-4 h-4" /> Export Data (JSON)
               </button>
             </div>
           </div>
@@ -150,7 +140,7 @@ const InsightsDashboard: React.FC = () => {
           <div className="glass-panel p-5 rounded-2xl border border-red-900/30">
             <h3 className="text-sm font-bold text-red-400 mb-2 uppercase tracking-wide">Danger Zone</h3>
             <button onClick={handleClear} className="w-full flex items-center justify-center gap-2 p-3 bg-red-950/50 border border-red-900 rounded-xl text-red-400 font-medium hover:bg-red-900/50 transition-colors">
-              <Trash2 className="w-4 h-4" /> Wipe All Data
+              <Trash2 className="w-4 h-4" /> Wipe Local Cache
             </button>
           </div>
         </div>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, BarChart3, Settings } from 'lucide-react';
+import { Mic, BarChart3, Settings, LogIn } from 'lucide-react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, signInWithGoogle, logoutUser } from './services/firebase';
 import RecorderWidget from './components/RecorderWidget';
 import InsightsDashboard from './components/InsightsDashboard';
 
@@ -10,8 +12,15 @@ enum View {
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>(View.RECORDER);
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+    });
+
     // Handle PWA shortcuts or deep links
     const params = new URLSearchParams(window.location.search);
     const viewParam = params.get('view');
@@ -20,7 +29,35 @@ const App: React.FC = () => {
     } else if (viewParam === 'RECORDER') {
       setCurrentView(View.RECORDER);
     }
+
+    return () => unsubscribe();
   }, []);
+
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-500">Loading...</div>;
+  }
+
+  // Auth Screen
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 px-6 text-center">
+        <div className="mb-8 p-4 bg-indigo-500/10 rounded-full animate-pulse">
+           <Mic className="w-12 h-12 text-indigo-400" />
+        </div>
+        <h1 className="text-3xl font-bold text-white mb-2">MindVault AI</h1>
+        <p className="text-slate-400 mb-8 max-w-xs">
+          Secure, cloud-synced neural memory for your thoughts.
+        </p>
+        <button 
+          onClick={signInWithGoogle}
+          className="flex items-center gap-3 bg-white text-slate-900 px-6 py-3 rounded-xl font-bold hover:bg-slate-200 transition-all shadow-lg shadow-indigo-500/20"
+        >
+          <LogIn className="w-5 h-5" />
+          Sign in with Google
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden bg-slate-950">
@@ -30,6 +67,18 @@ const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 w-full max-w-md mx-auto relative z-10 px-4 pt-6">
+        {/* User Badge */}
+        <div className="absolute top-4 right-4 z-50">
+           <img 
+             src={user.photoURL} 
+             alt="Profile" 
+             className="w-8 h-8 rounded-full border border-slate-700 shadow-md cursor-pointer hover:border-indigo-400 transition-colors"
+             onClick={() => {
+                if(confirm("Sign out?")) logoutUser();
+             }}
+           />
+        </div>
+
         {currentView === View.RECORDER && (
           <RecorderWidget onEntrySaved={() => setCurrentView(View.INSIGHTS)} />
         )}
